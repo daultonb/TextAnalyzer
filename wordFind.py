@@ -1,11 +1,16 @@
-def readFromTextFile(filepath):
+'''
+keywordFinder version 1.1~ See readME for changes
+'''
+import time
+
+def textfile_readText(filepath):
     '''
     This code reads a textfile into a String variable so that we can use it for analysis later.
     '''
     file = open(filepath, "r")
     text = file.read()
     return text
-def readKeywordsFromTextFile(filepath):
+def textfile_readKeywords(filepath):
     '''
     This method reads in the keywords from the textfile at the filepath specified.
     keywords should be written in the file as follows:
@@ -17,13 +22,13 @@ def readKeywordsFromTextFile(filepath):
     '''
     file = open(filepath, "r")
     #empty string * 5 because we have 5 "groups" of keywords
-    keywords = [""]*5
+    keywords = [dict for x in range(5)]
     for i in range(0,5):
         #this line is what reads in the keywords. First remove new line character (\n)
         #then split the keywords by COMMAS *This allows two word keywords*
         keywords[i] = file.readline().replace('\n','').split(',')
 
-    print(keywords) #use this print statement to view the output
+    print('keywords:',keywords) #use this print statement to view the output
     return keywords
 def createDictOfKeywords(keyword2DArray):
     '''
@@ -84,21 +89,104 @@ def findKeywords(text, keywordDictionary):
     #and the total number of keywords.
     return dictionary, totalMatches
 
-import time
-start = time.perf_counter_ns()
-#textFromFile will be a String holding the student's response
-textFromFile = readFromTextFile("C:/Users/dault/OneDrive/Desktop/DTQuiz_Q11.txt")
-#keywordsArray is a 2D array of the keywords from the text file
-keywordsArray = readKeywordsFromTextFile("C:/Users/dault/OneDrive/Desktop/DTQuiz_Keywords.txt")
+def ui_numKWCategories():
+    '''
+    This function asks the user how many keyword categories they would like
+    and then waits for them to confirm it until returning
+    '''
+    input2 = 'n'
+    while input2.lower() != 'y':
+        input1 = input('How many keyword categories would you like?: ')
+        input2 = input(f'You have requested {input1} categories, is this correct? (Y/N):')
+    try:
+        numKWCat = int(input1)
+        return numKWCat
 
-#matchesArray = [0]*len(keywordsArray) #this is meant to count the keyword count from each category- Not implemented yet
-keywordDict = createDictOfKeywords(keywordsArray)
+    except ValueError:
+        print('Input invalid. Try again')
+def ui_createDictionaries(numCat):
+    '''
+    This function takes the number of categories from the numKWCategories function and asks
+    the user for the keywords in each category.
+    This is a "Tricky" function because the list of keywords inputted by the user must match
+    the EXACT syntax that the program is looking for.
+    Here is the syntax:
+    ex. Enter the keywords in category 1 seperated by commas and no spaces, then press enter to indicate
+        the end of the list:
+        -> keyword1,twoword keyword,three word keyword
+
+        The spaces must ONLY be between the words in multi-word keywords and NOT before or after the commas.
+
+        The function will confirm the users input at each point to aid in spelling mistakes, etc.
+        Then at the end it will print out the array of key word dictionaries to confirm everything is correct.
+        If the user confirms this final response, keywords will be analyzed.
+    '''
+
+    kw_dicts = []
+    while True:
+            for i in range(0, numCat):
+                input2 = 'n'
+                while input2.lower() != 'y':
+                    input1 = input(f'Enter the keywords in category {(i+1)}, separated by commas and no spaces,'
+                                   f' then press enter to indicate the end of list:\n')
+                    input2 = input(f'The keywords in category {(i+1)} are "{input1}", is this correct? (Y/N):')
+                try:
+                    keywords = input1.split(',')
+                    dict1 = dict.fromkeys(keywords, 0)
+                    kw_dicts.append(dict1)
+
+                except:
+                    print('Entry error, try again')
+            input3 = input(f'Your keywords are as follows: {kw_dicts}.\nIs this correct? (Y/N):')
+            if input3.lower() == 'y':
+                return kw_dicts
+            else:
+                kw_dicts = []
+
+    return kw_dicts
+def findAllKeywords(text, kwDictList):
+    '''
+    This function runs each category dictionary in our kwDictList array
+    Through the exsisting findKeywords method
+    It updates the count of the dictionary at each index
+    and returns a count of keywords from that category
+    which gets stored in the categoryCounts array.
+    '''
+    catgoryCounts = [0]*len(kwDictList)
+    for i in range (0,len(kwDictList)):
+       kwDictList[i], catgoryCounts[i] = findKeywords(text, kwDictList[i])
+
+    return kwDictList, catgoryCounts
+
+
+start = time.perf_counter_ns()
+numCategories = ui_numKWCategories()
+kwDictList = ui_createDictionaries(numCategories)
+
+'''
+These commented lines are from version 1.0 where all of the input came from text files- Archival comments.
+As of this version, the text to be analyzed is still coming from a textfile, but this will likely change 
+in version 2.0
+'''
+#keywordsArray is a 2D array of the keywords from the text file
+#keywordsArray = textfile_readKeywords("C:/Users/dault/OneDrive/Desktop/DTQuiz_Keywords.txt")
+#textFromFile will be a String holding the student's response
+textFromFile = textfile_readText("C:/Users/dault/OneDrive/Desktop/DTQuiz_Q11.txt")
+#keywordDict = createDictOfKeywords(keywordsArray)
+#keywordsFound = findKeywords(textFromFile, keywordDict)
+
+
+#This line prints the text input (to be analyzed)
+#print(f'Text to be analyzed:{textFromFile}')
+
 preproc = time.perf_counter_ns() #current time in nano seconds
 preprocTimeMs = (preproc-start)/1000000 #1,000,000 ns in a ms
 print(f'Pre-processing time: {preprocTimeMs}ms')
-keywordsFound = findKeywords(textFromFile, keywordDict)
+
+KWCountList, keywordCounts = findAllKeywords(textFromFile, kwDictList)
 end = time.perf_counter_ns() #current time in nano seconds
 exTime = (end-preproc)/1000000 #1,000,000 ns in a ms
-print(f'Dict of keyword matches: {keywordsFound[0]}')
-print(f'Total matches: {keywordsFound[1]}')
+
+print(f'List of keyword dictionary matches: {KWCountList}')
+print(f'Total matches: {keywordCounts}')
 print(f'Execution Time using preprocessed dictionary: {exTime}ms')
