@@ -3,7 +3,7 @@ A Python Program design to find the number of occurrences of keywords in a given
 
 Project started: September 26th, 2019
 
-Goal: To read a student's essay response and find how many times they used specific keywords pre-determined by an instructor. These keywords are to be grouped into a number of groups and the student must use keywords from each group X number of times for the essay response to be acceptable. A GUI is to implemented for ease of acces of the instructory
+Goal: To read a student's essay response and find how many times they used specific keywords pre-determined by an instructor. These keywords are to be grouped into a number of groups and the student must use keywords from each group X number of times for the essay response to be acceptable. A GUI is to be implemented for ease of access of the instructor or person assessing the text.
 
 Update - Version 2.1 - Nov 2nd, 2019:
 
