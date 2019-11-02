@@ -5,7 +5,8 @@ Project started: September 26th, 2019
 
 Goal: To read a student's essay response and find how many times they used specific keywords pre-determined by an instructor. These keywords are to be grouped into a number of groups and the student must use keywords from each group X number of times for the essay response to be acceptable. A GUI is to implemented for ease of acces of the instructory
 
-Update - Version 2.0 - Oct 29th, 2019
+Update - Version 2.0 - Oct 29th, 2019:
+
 GUI added for ease of use. GUI created using Python's Tkinter module.
 Program now allows user to define names for the keyword categories.
 Program also accepts either manual entry of keyword categories or accepts them from a text file ("keywords.txt").
