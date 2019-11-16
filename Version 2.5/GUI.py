@@ -1,0 +1,901 @@
+import tkinter as tk
+import re
+import time
+import csv
+
+version = 2.5
+# window dimensions
+HEIGHT = 750
+WIDTH = 1000
+
+# global variables
+# userEntries is a list that will hold all of the user's inputs via the entry field
+# counter is a counter variable used for functions that are recursively called
+#   (to check how many times we have called them)
+# numCat is the total number of categories if the user selects manual entry
+# catNames is a list of all of the category names to be applied to the KeywordCategories
+# catThresh is a list of all of the category thresholds (number of total occurrences to pass that category)
+# kw_dicts is a list that holds the KeywordCategory objects
+# STAGE is a variable that stores what part of the program we are at. It is used as a "switch variable" (See getResponse documentation)
+# textToBeAnalyzed is the students's text entry response.
+# Manual is a Boolean that is set based on whether the use wants to read from text files or manually input keywords & text
+# csvInput is a list that stores the entries of each run of the text analysis so that it can be written to a csv file.
+userEntries = []
+counter = 0
+numCat = 0
+catNames = []
+catThresh = []
+kw_dicts = []
+STAGE = 0
+textToBeAnalyzed = ''
+manual = None
+csvInput = []
+PATH = 'lib/'
+
+'''
+KeywordCategory Class
+
+Variables:
+name- Category Name
+kwList - List/Array of Keywords
+keywords - Dictionary of Keywords with number of occurrences entry
+thresh - Integer threshold for how many keywords of this category are required for the text to "pass"
+
+Functions:
+Setters
+set_name, set_thresh - self explanatory
+set_list             - set kwList from a comma separated string
+set_list_fromFile    - set kwList from a given list
+set_dict             - set keywords Dictionary from a list/array
+
+Getters
+getName, getKeyList,
+getKeywords, getThresh  - self explanatory 
+getPassFail             - counts number of occurrences stored in keywords Dictionary and 
+                           compares to threshold, if occurrences >= threshold, return True
+
+Other
+resetKeys               - Resets the occurrences for all keywords in Dictionary to 0 for next run
+print                   - defines how we want to print the KeywordCategories (to GUI and Console)
+textFileOutput          - defines formatting for outputting (and inputting) with text file.
+'''
+class KeywordCategory:
+    def __int__(self):
+        name = ''
+        kwList = []
+        keywords = {}
+        thresh = 0
+
+    def set_name(self, name):
+        self.name = name
+
+    def set_list(self, keywords):
+        self.kwList = keywords.split(',')
+
+    def set_list_fromFile(self, keywordList):
+        self.kwList = keywordList
+
+    def set_dict(self, keywordList):
+        self.keywords = dict.fromkeys(keywordList, 0)
+
+    def set_thresh(self, thresh):
+        self.thresh = thresh
+
+    def resetKeys(self):
+        keywords = self.getKeywords()
+        for keys in keywords:
+            keywords[keys] = 0
+        self.set_list_fromFile(keywords)
+
+    def getName(self):
+        return self.name
+
+    def getKeyList(self):
+        return self.kwList
+
+    def getKeywords(self):
+        return self.keywords
+
+    def getThresh(self):
+        return self.thresh
+
+    def getPassFail(self):
+        count = 0
+        kwDict = self.getKeywords()
+        threshold = self.getThresh()
+        for keys in kwDict:
+            count += kwDict[keys]
+        if count >= threshold:
+            return True
+        elif count < threshold:
+            return False
+        else:
+            return None
+
+    def print(self):
+        return f'[\nName:{self.getName()}, \nthreshold:{str(self.getThresh())}, \nlist:{self.getKeyList()}, \ndict:{self.getKeywords()},\n]'
+
+    def textFileOutput(self):
+        keys = ''
+        keylist = self.getKeyList()
+        for i in range(0, len(keylist)):
+            if i != len(keylist)-1:
+                keys += keylist[i] + ','
+            else:
+                keys += keylist[i]
+        retStr = '' + self.getName() + '\n' + self.getThresh() + keys + '\n'
+        return retStr
+
+# functions
+def updateText(entry):
+    '''
+    This function updates the user's text upon the button being pressed or the Enter/ Return key being pressed
+    The entry parameter is the text that is in the entry field at the time of button press/ enter key press
+    If there is no text in the entry field, it is considered an invalid entry.
+    If there is text, it is updated into the "convo" text field and the entry field is cleared
+    The function then runs the getResponse() function which is what gets the next output of the computer.
+    We pass the global variable STAGE into getResponse() so that it can determine which function to go to.
+    '''
+    global STAGE
+    # if length > 0, there is text
+    if len(entry) > 0:
+        convo.insert(tk.INSERT, '\nUser: ' + entry)
+        userEntries.append(entry)
+        user.delete(0, tk.END)
+        print(f'userEntries list: {userEntries}') # Used to track entries that are stored & deleted
+        getResponse(STAGE)
+    else:
+        convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+    # GUI auto scroll down
+    convo.see('end')
+
+
+def getResponse(STAGE):
+    '''
+    This function takes in the global variable STAGE which this function
+     uses to determine which part or "Stage" of the program we are on.
+    - Initially we need to st up the keyword categories (stage = 0)
+    - Then we create dictionaries from the keyword categories (stage = 1)
+    - Then we get the input text that is going to be analyzed for keywords (stage = 2)
+    - Then we find all of the keywords in the text. (stage = 3)
+    '''
+    if STAGE == 0:
+        getKeywordCats()
+    elif STAGE == 1:
+        createDicts()
+    elif STAGE == 2:
+        getTextToAnalyze()
+    elif STAGE == 3:
+        analyzeText()
+
+
+def getKeywordCats():
+    '''
+    This function gets all of the keywords and keyword categories from the user.
+    The categories are stored as a custom Object type - KeywordCategories which can store the
+        category name, keyword list (array), keyword dictionary, and threshold (see Documentation above)
+    The global variables used are:
+        userEntries, counter, numCat, catNames, catThresh kw_dicts, STAGE, and manual.
+        - userEntries is the array that stores user input so we need this to check if the input was as expected
+            and to account for yes or no (Y/N) responses.
+        -counter is a counter variable, in this method it is used to count which category we are currently on.
+        -numCat is the number of categories the user has requested.
+        -catNames is the list storing the names of each category (to later set name var of KeywordCategories)
+        -catThresh is the list storing the thresholds of each of the categories
+        -kw_dicts is the list of all of the KeywordCategories.
+        -STAGE is only used so that we can increment it at the end of this function
+        -manual is a boolean that is set based on if user wants to read from text file or manual entry
+        -PATH is the filepath where the files that are read/written to are stored
+    '''
+    global userEntries, counter, numCat, catNames, catThresh, kw_dicts, STAGE, manual, PATH
+    backUp = []
+    count = len(userEntries)
+    # count=0 means start, ask how many categories
+    if count == 0:
+        convo.insert(tk.INSERT, '\nComp: Would you like to use keywords from text file or '
+                                'manual entry?(Enter "0" for text file or "1" manual entry)')
+
+    if count == 1 and manual is None:
+        if userEntries[0] == '0':
+            manual = False
+        elif userEntries[0] == '1':
+            manual = True
+    if manual:
+        if count == 1:
+            convo.insert(tk.INSERT, '\nComp: How many keyword categories would you like?')
+        # count=2 means they entered a number of categories, confirm the entry
+        elif count == 2:
+            # if the user entered a valid number of categories, it will be an integer
+            try:
+                numCat = int(userEntries[-1])
+                convo.insert(tk.INSERT, f'\nComp: You have requested {numCat} categories, is this correct? (Y/N)')
+            # if not, output error text and back up previous entries to go back
+            except ValueError:
+                convo.insert(tk.INSERT, "\nComp: The number of categories must be a number.")
+                for i in range(0, len(userEntries)-1):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                count -= 1
+                getResponse(STAGE)
+        # count=3 means that we are now naming and setting threshold of the first category
+        # unless 'n' was entered at count=1, then we reset the list and start again.
+        elif count == 3:
+            if userEntries[-1].lower() == 'y':  # If the user confirmed # categories, move on
+                convo.insert(tk.INSERT, f'\nComp: Enter the name and threshold of category {(counter+1)} (In the form "name,threshold"):')
+                counter += 1
+            elif userEntries[(count-1)].lower() == 'n':
+                userEntries.remove(userEntries[-2])
+                userEntries.remove(userEntries[-1])
+                counter = 0
+                getResponse(STAGE)
+            else:
+                convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+                userEntries.remove(userEntries[-1])
+                getResponse(STAGE)
+        # This is the iterative step of asking for a category name and then confirming it,
+        # So we need a generic conditional statement
+        # numCat * 2 because there is a name/threshold and confirmation 'y' for each cat
+        # 3 < and + 3 because this step starts after the first 3
+        # We are selecting the name of a category
+        # Unless 'n' was entered at the previous step, then we save the list up to the
+        #  last category name and restart this step
+        elif 3 < count < (numCat*2)+3 and counter < numCat and count % 2 != 0:
+            if userEntries[-1].lower() == 'y':  # If the user confirmed # of categories or category name, move on
+                convo.insert(tk.INSERT, f'\nComp: Enter the name and threshold of category {(counter+1)} (In the form "name,threshold"):')
+                counter += 1
+            elif userEntries[-1].lower() == 'n':
+                for i in range(0, (count-2)):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                catNames.pop()
+                catThresh.pop()
+                counter -= 1
+                getResponse(STAGE)
+            else:
+                convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+                for i in range(0, len(userEntries) - 1):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                catNames.pop()
+                catThresh.pop()
+                count -= 1
+                getResponse(STAGE)
+
+        # Confirmation part of above step. Only accepts 'Y' or 'N' (lower or upper case)
+        # Anything else will output "Invalid entry, try again"
+        elif 3 < count < (numCat*2)+3 and counter <= numCat and count % 2 == 0:
+            words = userEntries[-1].split(',')
+            # if user enters a valid name and threshold, the threshold should be an integer
+            try:
+                convo.insert(tk.INSERT, f'\nComp: Category {counter} is called "{words[0]}", '
+                                        f' with a threshold of "{int(words[1])}"'
+                                        f'\nIs this correct? (Y/N)')
+                catNames.append(words[0])
+                catThresh.append(int(words[1]))
+            # if threshold is not an integer, ValueError is thrown
+            except ValueError:
+                convo.insert(tk.INSERT, "\nComp: The threshold must be a number.")
+                for i in range(0, len(userEntries) - 1):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                counter -= 1
+                getResponse(STAGE)
+
+        # When count = (numCat*2) + 3 that means that the user has inputted - see calc at top of 'iterative step'
+        #  all categories and confirmed, lets confirm all categories to make sure.
+        elif count == (numCat*2)+3 and counter >= numCat and userEntries[-1].lower() == 'y':
+            c = 1  # temp variable
+            for i in range(3, len(userEntries)-1, 2):
+                words = userEntries[i].split(',')
+                convo.insert(tk.INSERT, f'\nComp: Category {c} is named "{words[0]}",'
+                                        f'with a threshold of "{words[1]}"')
+                c += 1
+            convo.insert(tk.INSERT, f'\nComp: Are these entries all correct? (Y/N):')
+
+        # Last entry is incorrect, backup list and go back
+        elif count == (numCat*2) + 3 and counter >= numCat and userEntries[-1].lower() == 'n':
+            for i in range(0, len(userEntries)-2):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            catNames.pop()
+            catThresh.pop()
+            counter = numCat-1
+            getResponse(STAGE)
+        # At this point we are adding the KeywordCatgories to the list
+        elif count > (numCat * 2) + 3:
+            if userEntries[-1].lower() == 'y':
+                for i in range(0, len(catNames)):
+                    kw_dicts.append(KeywordCategory())
+                # Set counter manual to None so that they can be reused
+                counter = 0
+                manual = None
+                STAGE = 1
+                getResponse(STAGE)
+            elif userEntries[-1].lower() == 'n':
+                backUp.append(userEntries[0])
+                backUp.append(userEntries[1])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                counter = 0
+                getResponse(STAGE)
+            else:
+                convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+                for i in range(0, len(userEntries) - 1):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                catNames.pop()
+                catThresh.pop()
+                count -= 1
+                getResponse(STAGE)
+        else:
+            convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+            for i in range(0, len(userEntries) - 1):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            catNames.pop()
+            catThresh.pop()
+            count -= 1
+            getResponse(STAGE)
+
+    # If user wants to read keywords from text file
+    if not manual:
+        filename = 'keywords.txt'
+        fullname = PATH + '' + filename
+        if count == 1:
+            convo.insert(tk.INSERT, f'\nComp: Are the keywords in the file: "{filename}"?(Y/N)')
+        elif count == 2 and userEntries[-1].lower() == 'y':
+            '''
+            Assumed keyword file format:
+            ********************************
+            category 1 name
+            keyword 1,keyword 2,keyword 3
+            category 2 name
+            keyword 1,keyword 2,keyword 3
+            ...etc
+            ********************************
+            '''
+            try:
+                file = open(fullname, 'r')
+                convo.insert(tk.INSERT, f'\nComp: From File:\n')
+                catNames = []   # stores all category names
+                catThresh = []  # stores all the category thresholds
+                kwlists = []    # stores all keywords
+
+                # For each line in the file, first line is category name
+                #  second line is threshold, third line is keyword list
+                for line in file:
+                    line = line.replace('\n', '')
+                    catNames.append(line)
+                    catThresh.append(file.readline().replace('\n', ''))
+                    kwlists.append(file.readline().replace('\n', ''))
+            except FileNotFoundError:
+                convo.insert(tk.INSERT, f'\nComp: File not found.')
+
+            # For the number of categories we collected from the file,
+            #  set the names and lists and dicts up
+            try:
+                for i in range(0, len(catNames)):
+                    kw_dicts.append(KeywordCategory())
+                    kw_dicts[i].set_name(catNames[i])
+                    kw_dicts[i].set_thresh(int(catThresh[i]))
+                    kw_dicts[i].set_list(kwlists[i])
+                    kw_dicts[i].set_dict(kw_dicts[i].getKeyList())
+                    convo.insert(tk.INSERT, f'\nCategory{i+1}:{kw_dicts[i].print()}')
+
+            # If threshold is not an integer, ValueError thrown
+            except ValueError:
+                convo.insert(tk.INSERT, f'\nComp: There was a problem with the format of the text file.'
+                                        f' Please fix it and try again.')
+                for i in range(0, len(userEntries) - 2):
+                    backUp.append(userEntries[i])
+                userEntries.clear()
+                userEntries = backUp.copy()
+                getResponse(STAGE)
+
+            convo.insert(tk.INSERT, f'\n\nComp: Is this correct? (Y/N)')
+
+        # User entered 'n', backup and retry
+        elif count == 2 and userEntries[-1].lower() == 'n':
+            for i in range(0, len(userEntries) - 2):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            getResponse(STAGE)
+        # If user confirms the keywords, move on to text to analyze
+        elif count == 3 and userEntries[-1].lower() == 'y':
+            manual = None
+            counter = 0
+            STAGE = 2
+            getResponse(STAGE)
+        # If user does not confirm, tell them to fix fix and retry.
+        # NOTE: This program does not support live file editing so the program must be re executed with changes
+        #       for them to take effect.
+        elif count == 3 and userEntries[-1].lower() != 'y':
+            convo.insert(tk.INSERT, f'\nComp: Please correct the keywords in "{filename}" to read them from a text file\n')
+            for i in range(0, len(userEntries) - 2):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            getResponse(STAGE)
+
+    convo.see('end')  # makes the scrollbar keep most recent messages on screen
+
+
+def createDicts():
+    '''
+    This function creates the dictionaries of the keywords that were received in the getKeywordCats function
+    This function uses the global variables: counter, kw_dicts, and STAGE
+        -counter is used to count the category we are on, similar to in getKeywordCats
+        -kw_dicts is the list (array) storing the KeywordCategory objects.
+        -STAGE is updated when function is done so we can change outcome of getResponse()
+        -userEntries is the list (array) that stores all of the user's entries
+        -catNames is a list of the KeywordCategory names
+        -catThresh is a list of the KeywordCategory thresholds
+        -PATH is the filepath where the files that are read/written to are stored
+    '''
+    global counter, kw_dicts, STAGE, userEntries, catNames, catThresh, PATH
+    backUp = []  # for resetting list when 'n' is entered
+    # set up dictionaries by name
+    print(f'Counter = {counter}/{len(kw_dicts)}')
+    for i in range(0, len(kw_dicts)):
+        kw_dicts[i].set_name(catNames[i])
+        kw_dicts[i].set_thresh(catThresh[i])
+
+    # we are not in first run of function, and previous list has been confirmed
+    if 0 < counter <= len(kw_dicts) and userEntries[-2].lower() == 'y':
+        keywords = userEntries[-1]
+        kw_dicts[(counter - 1)].set_list(keywords)
+        kw_dicts[(counter - 1)].set_dict(kw_dicts[(counter - 1)].getKeyList())
+
+    # User made an error with one of the keywords, retry
+    if 0 < counter <= len(kw_dicts) + 1 and userEntries[-1].lower() == 'n':
+        userEntries.pop()
+        userEntries.pop()
+        counter -= 1
+        getResponse(STAGE)
+    # If previous keywords have been confirmed, move on to next
+    elif counter < len(kw_dicts) and userEntries[-1].lower() == 'y':
+        convo.insert(tk.INSERT, f'\nComp: Enter the keywords of the category named "{kw_dicts[counter].getName()}"'
+                                f' (Separated by commas and no spaces in between words!):')
+        counter += 1
+    # If the user accepts the final keyword category, jump to next step
+    elif counter == len(kw_dicts) and userEntries[-1].lower() == 'y':
+        counter += 1
+        getResponse(STAGE)
+    # Check that keywords are right each time, = allows us to recheck on the last keyword category
+    elif counter <= len(kw_dicts):
+        convo.insert(tk.INSERT, f'\nComp: The keywords of the category named "{kw_dicts[(counter-1)].getName()}"'
+                                f' are {kw_dicts[(counter-1)].getKeyList()}.\nComp: Is this correct? (Y/N):')
+        # If counter of categories is on the final category, increment it one more time to escape infinite loop
+
+    # At this point the dictionaries are complete. Ask user if they would like  to create a backup of these keywords.
+    elif counter == (len(kw_dicts)+1):
+        for i in range(0, len(kw_dicts)):
+            convo.insert(tk.INSERT, f'\nComp: The keywords of the category named "{kw_dicts[i].getName()}"'
+                                    f' are {kw_dicts[i].getKeyList()}.')
+            print(f'Dict #{(i+1)}: {kw_dicts[i].print()}')
+        # This is to save keywords to file for later use.
+
+        convo.insert(tk.INSERT, f'\nComp: Would you like to save these keywords '
+                                f'to a text file for later use? (Y/N):')
+        counter += 1
+    elif counter > (len(kw_dicts)+1) and userEntries[-1].lower() == 'y':
+        '''if user said yes, open and write keywords to "keywords.txt"
+        Format of "keywords.txt"
+        ***************************************
+        Category name 1
+        Keyword 1,Keyword 2,Keyword 3
+        Category name 2
+        Keyword 1,Keyword 2,Keyword 3
+        **************************************
+        Notice spacing between "," and "K" between each keyword!
+            This allows for multi-word keywords
+        '''
+        filename = 'keywords.txt'
+        fullname = PATH + '' + filename
+        file = open(fullname, 'w')
+        # write keywords to text file using KeywordCategory class's built in method: textFileOutput
+        for i in range(0, len(kw_dicts)):
+            file.write(kw_dicts[i].textFileOutput())
+        convo.insert(tk.INSERT, f'\nComp: The keywords have been saved to file "{filename}".\n')
+        # counter will be reused, reset it.
+        counter = 0
+        STAGE = 2
+        getResponse(STAGE)
+
+    # if user does not want a backup, just move to next step.
+    elif counter > (len(kw_dicts) + 1) and userEntries[-1].lower() == 'n':
+        convo.insert(tk.INSERT, f'\nComp: The keywords will not be saved.')
+        counter = 0
+        STAGE = 2
+        getResponse(STAGE)
+    else:
+        convo.insert(tk.INSERT, f"\nComp: I'm sorry, that entry was invalid. Please try again.")
+        for i in range(0, len(userEntries)-1):
+            backUp.append(userEntries[i])
+        userEntries.clear()
+        userEntries = backUp.copy()
+        counter -= 1
+        getResponse(STAGE)
+
+
+def getTextToAnalyze():
+    '''
+    This function is for getting the (student's) text to be analyzed for keywords
+    It uses the global variables: textToBeAnalyzed, counter, userEntries, STAGE, kw_dicts, and manual.
+        -textToBeAnalyzed is a string that stores the student's text after it has been entered into
+            the textfield by the user
+        -counter is a counter variable to count how many times we have called this function
+        -userEntries is the list (array) that stores the users text entries.
+        -STAGE is to be updated on the last run of the function so that we can go to the next step
+        -kw_dicts is the list containing the KeywordCategory objects
+        -manual is the boolean that determines manual or text file input
+        -PATH is the filepath where the files that are read/written to are stored
+    '''
+    global textToBeAnalyzed, counter, userEntries, STAGE, kw_dicts, manual, PATH
+    backUp = []  # For backup & resetting the userEntries list.
+
+    if counter == 0:
+        convo.insert(tk.INSERT, f'\nComp: Would you like to read text to be analyzed from a text file,'
+                                f' or manually input it? (Enter "0" for text file or "1" for manual entry).')
+        counter += 1
+    elif counter == 1 and manual is None:
+        if userEntries[-1] == '0':
+            manual = False
+            counter += 1
+        elif userEntries[-1] == '1':
+            manual = True
+            counter += 1
+        else:
+            convo.insert(tk.INSERT, f'\n\nComp: That entry was invalid.')
+    if manual:
+        if counter == 2:
+            convo.insert(tk.INSERT, f'\n\nComp: Please type or paste the text into the textbox '
+                                    f'below and press Enter when finished.\n')
+            counter += 1
+        elif counter == 3:
+            textToBeAnalyzed = userEntries[-1]
+            convo.insert(tk.INSERT, f'\n\nComp: You entered:\n"{textToBeAnalyzed}"'
+                                    f'\n\nComp: Is this correct? (Y/N)')
+            counter += 1
+        # Move to text analysis Stage
+        elif counter == 4 and userEntries[-1].lower() == 'y':
+            counter = 0
+            STAGE = 3
+            getResponse(STAGE)
+
+        elif counter == 4 and userEntries[-1].lower() == 'n':
+            for i in range(0, len(userEntries)-2):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp
+            counter = 2
+            getResponse(STAGE)
+
+    # If entry by text file is desired
+    if not manual and manual is not None:
+        # Path where program is looking for the files (kind of)
+        filename = 'textToAnalyze.txt'
+        if counter == 2:
+            convo.insert(tk.INSERT, f'\nComp: Is the text you would like to analyze in: "{filename}"?(Y/N)')
+            counter += 1
+        elif counter == 3 and userEntries[-1].lower() == 'y':
+            '''
+                Assumed textToBeAnalyzed file format:
+                ********************************
+                Text that someone has wrote where
+                we are looking for keywords...
+                *
+                Second piece of text that we are
+                analyzing for keywords
+                ********************************
+            '''
+            try:
+                fullname = PATH+''+filename
+                file = open(fullname, 'r')
+                convo.insert(tk.INSERT, f'\nComp: From File:\n')
+                textEntries = []  # stores each student's text entry
+                # for each line in the file, append it to the string
+                for line in file:
+                    textToBeAnalyzed += line.lower()
+                # The student's entries are delimited by '*'
+                textEntries = textToBeAnalyzed.split('*')
+
+                # print each entry one by one to confirm
+                for i in range(0, len(textEntries)):
+                    convo.insert(tk.INSERT, f'\nComp: Entry {i+1}: \n{textEntries[i]}')
+
+                convo.insert(tk.INSERT, f'\nComp: Is this correct? (Y/N)')
+                counter += 1
+            except FileNotFoundError:
+                convo.insert(tk.INSERT, f'\nComp: File "{filename}" Not Found')
+        # If the text is not in the right file, tell user to put it there.
+        elif counter == 3 and userEntries[-1].lower() == 'n':
+            convo.insert(tk.INSERT, f'\nComp: Please put the text to analyze into {filename} to read from a text file\n')
+            for i in range(0, len(userEntries) - 1):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            counter -= 1
+            getResponse(STAGE)
+        # Entries are correct, move to analysis stage
+        elif counter == 4 and userEntries[-1].lower() == 'y':
+            counter = 0
+            STAGE = 3
+            getResponse(STAGE)
+        # If text is wrong in text file, tell them to update it then try again.
+        elif counter == 4 and userEntries[-1].lower() == 'n':
+            convo.insert(tk.INSERT, f'\nComp: Please correct the text to analyze in "{filename}"" to analyze it from a text file\n')
+            for i in range(0, len(userEntries) - 2):
+                backUp.append(userEntries[i])
+            userEntries.clear()
+            userEntries = backUp.copy()
+            textToBeAnalyzed = ''
+            counter -= 2
+            getResponse(STAGE)
+
+
+def analyzeText():
+    '''
+    This function does the actual analysis of the inputted text and can also export results to a csv file
+    It uses the global variables: userEntries, textToBeAnalyzedm kw_dicts, counter, STAGE, catNames,
+     catThresh, csvInput, and PATH
+        -userEntries is the list of user input
+        -textToBeAnalyzed is the text the user inputted in the previous step for the program to analyze
+        -kw_dicts is the list of KeywordCategory objects
+        -counter is a counter variable to count how many times we have run this function
+        -STAGE is used to track with "stage" of the program we are on and updated to move back or forward
+        -csvInput is a list that stores the counts of each KeywordCategory to be output to a csv file
+        -PATH is the filepath where the files that are read/written to are stored
+    '''
+    global userEntries, textToBeAnalyzed, kw_dicts, counter, STAGE, csvInput, PATH, manual
+    backUp = []
+    if counter == 0:
+        studentEntries = textToBeAnalyzed.split('*')
+        for i in range(0, len(studentEntries)):
+            convo.insert(tk.INSERT, f'\n\nComp: Text Analysis for Student #{i + 1}:'
+                                    f'\n****************************************************\n')
+            kw_dictList, categoryCounts = findAllKeywords(studentEntries[i], kw_dicts)
+            allMatches = 0
+            allPassFails = []
+            passedAll = True
+            for i in range(0, len(kw_dictList)):
+                allMatches += categoryCounts[i]
+                allPassFails.append(kw_dicts[i].getPassFail())
+                convo.insert(tk.INSERT, f'\nCategory:"{kw_dicts[i].getName()}",'
+                                        f'\nThreshold:{kw_dicts[i].getThresh()},'
+                                        f' Total keywords found: {categoryCounts[i]}'
+                                        f'\nOccurrences of each Keyword: {kw_dictList[i]}\n'
+                                        f'\nPassed Threshold: {kw_dicts[i].getPassFail()}\n')
+
+            categoryCounts.append(allMatches)
+            print(f'csvInput appends: {categoryCounts}')
+            csvInput.append(categoryCounts)
+
+            for i in range(0, len(allPassFails)):
+                passedAll = passedAll and allPassFails[i]
+
+            convo.insert(tk.INSERT, f'\nTotal Keyword Matches: {allMatches}'
+                                    f'\nPassed All Thresholds: {passedAll}'
+                                    f'\n****************************************************')
+        counter += 1
+        getResponse(STAGE)
+
+    elif counter == 1:
+        convo.insert(tk.INSERT, f'\nComp: Would you like to save these statistics to a csv file?(Y/N)\n')
+        counter += 1
+
+    # Export to csv file
+    elif counter == 2 and userEntries[-1].lower() == 'y':
+        convo.insert(tk.INSERT, f'\nComp: Generating CSV file...\n')
+        '''if user said yes, open and write keywords to "textAnalysis.csv"
+            Format of "textAnalysis.csv"
+            **********************************************************
+            Matches Category 1, Matches Category 2, ..., Total Matches
+                Text 1 Matches, Text 1 Matches,     ..., Text 1 TotalMatches 
+                Text 2 Matches, Text 2 Matches,     ..., Text 2 TotalMatches
+            **********************************************************
+                
+            This should give us an excel file like this:
+            **********************************************************************
+            | Matches Category 1 | | Matches Category 2 |    | Total Matches |
+            ---------------------- ---------------------- ------------------------
+            | Text 1 Matches C1  | | Text 1 Matches C2  | | Text 1 Total Matches |
+            ---------------------- ---------------------- ------------------------
+            **********************************************************************
+        '''
+        csvHeaders = []
+        for i in range(0, len(kw_dicts)):
+            csvHeaders.append(f'Matches {kw_dicts[i].getName()} ({kw_dicts[i].getThresh()})')
+        csvHeaders.append('Total Matches')
+        filename = 'textAnalysis.csv'
+        fullname = PATH+''+filename
+        file = open(fullname, 'w', newline='')
+        # write keywords to text file using KeywordCategory class's built in method: textFileOutput
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, dialect='excel')
+        writer.writerow(csvHeaders)
+        for i in range(0, len(csvInput)):
+            writer.writerow(csvInput[i])
+        convo.insert(tk.INSERT, f'\nComp: The keywords have been saved to file "{filename}".\n')
+        counter += 1
+        getResponse(STAGE)
+
+    elif counter == 2 and userEntries[-1].lower() == 'n':
+        convo.insert(tk.INSERT, f'\nComp: Statistics will not be saved.')
+        counter += 1
+        getResponse(STAGE)
+
+    # Since they are manually entering one at a time, ask if user has more text to analyze
+    elif counter == 3:
+        convo.insert(tk.INSERT, f'\nComp: Is there more text you would like to analyze? (Y/N):')
+        counter += 1
+
+    # Loops back to text entry so that another text entry can be analyzed
+    # Does not save/store stats from previous run!
+    elif counter == 4 and userEntries[-1].lower() == 'y':
+        for i in range(0, len(userEntries) - 2):
+            backUp.append(userEntries[i])
+        userEntries.clear()
+        userEntries = backUp.copy()
+        counter = 0
+        manual = None
+        STAGE = 2
+        getResponse(STAGE)
+
+    # If no more text to analyze, Output Goodbye Message, Exit program
+    elif counter == 4 and userEntries[-1].lower() == 'n':
+        convo.insert(tk.INSERT, f'\nComp: Thank you for using KeywordFinder, Goodbye!')
+        print('Thank you for using KeywordFinder, Goodbye!')
+        counter += 1
+        time.sleep(5)
+        getResponse(STAGE)
+    # Exits the program
+    elif counter == 5:
+        raise SystemExit(0)
+
+    else:
+        convo.insert(tk.INSERT, "\nComp: I'm sorry, that entry was invalid.")
+        for i in range(0, len(userEntries) - 1):
+            backUp.append(userEntries[i])
+        userEntries.clear()
+        userEntries = backUp.copy()
+        counter -= 1
+        getResponse(STAGE)
+
+
+def findAllKeywords(text, kw_dicts):
+    '''
+    This function runs each category dictionary in our kwDictList array
+    Through the existing findKeywords method
+    It updates the count of the dictionary at each index
+    and returns a count of keywords from that category
+    which gets stored in the categoryCounts array.
+    '''
+
+    kwDictList = ['']*len(kw_dicts)
+    categoryCounts = [0]*len(kw_dicts)
+    for i in range(0, len(kw_dicts)):
+        kw_dicts[i].resetKeys()
+        kwDictList[i] = kw_dicts[i].getKeywords()
+
+    for i in range(0, len(kwDictList)):
+        kwDictList[i], categoryCounts[i] = findKeywords(text, kwDictList[i])
+    return kwDictList, categoryCounts
+
+
+def findKeywords(text, keywordDictionary):
+    '''
+    re library contains the split method to split the text into regular English words.
+    This means it removes commas, hyphens, apostrophes...-> ","   "-"   " ' " .. etc.
+    This means that the keywords cannot contain these characters
+    OR something else must be used to split the text word-by-word (more difficult)
+    '''
+    # totalMatches keeps track of number of matches to any keyword
+    totalMatches = 0
+    # use the dictionary called to the method but copied because we will be updating it
+    dictionary = keywordDictionary
+    # this line splits the input text into individual words and puts that into an array
+    # we also use the lowercase version to prevent capitalized letters from being skipped
+    array = re.split('\W+', text.lower())
+
+    for i in range(0,len(array)):
+        # pulls next word to compare
+        nextWord = array[i]
+        # if we are not on the last word of the input text we can compare two words at a time
+        # THIS IS IMPORTANT. This is how to find multi-word keywords like "design thinking"
+        if i < len(array)-1:
+            # next two words is just current word concatenated with a space and the next word
+            nextTwoWords = nextWord+' '+array[i+1]
+            # if the next two words are in our dictionary, they are a keyword
+            if nextTwoWords in dictionary:
+                # we increment the number at that keyword in the dictionary (so we can track KW count
+                # for each word)
+                dictionary[nextTwoWords] += 1
+                totalMatches += 1
+        '''this part just compares word by word.
+            for this reason, one word keywords that are also contained in two word keywords are an issue
+            Ex. "design thinking" and "thinking" cannot both be keywords because "design thinking" will be counted as 2 keywords
+            because the text is being scanned for both single and double word keywords
+            '''
+        if nextWord in dictionary:
+            # Same as above, if dictionary contains the word, it is a keyword.
+            dictionary[nextWord] += 1
+            totalMatches += 1
+    # this lets us return both the dictionary (which now has how many times each keyword occurs)
+    # and the total number of keywords.
+
+    return dictionary, totalMatches
+
+
+def getColour(field, colourmode):
+    '''
+    FFFFFF is the hex colour for white, 000000 is the hex color for black
+    darkmode is white text on black background
+    lightmode is black text on white background
+    field is what they are colouring, bg = background colour
+    txt is all text in the program
+    '''
+    if colourmode == 'dark':
+        if field == 'bg':
+            return '#000000'
+        elif field == 'txt':
+            return '#FFFFFF'
+        elif field == 'scrl':
+            return '#423F3F'
+    if colourmode == 'light':
+        if field == 'bg':
+            return '#FFFFFF'
+        elif field == 'txt':
+            return '#000000'
+
+
+window = tk.Tk()
+
+colourmode = 'dark'
+bgcolour = getColour('bg', colourmode)
+textcolour = getColour('txt', colourmode)
+scrlcolour = getColour('scrl', colourmode)
+
+window.title(f'KeywordFinder v{version}')
+
+canvas = tk.Canvas(window, height=HEIGHT, width=WIDTH, bg=bgcolour)
+canvas.pack()
+
+header_frame = tk.Frame(window, bg=bgcolour, bd=6)
+header_frame.place(anchor='n', relx=0.5, rely=0.01, relwidth=0.98, relheight=0.15)
+
+title = tk.Label(header_frame, text='Keyword Finder', font=('Times', 50), bg=bgcolour, fg=textcolour)
+title.place(anchor='n', relx=0.5, rely=0.1, relwidth=1, relheight=0.6)
+
+middle_frame = tk.Frame(window, bg='#000000', bd=6)
+middle_frame.place(relx=0.01, rely=0.17, relwidth=0.98, relheight=0.6)
+
+# code from: https://stackoverflow.com/questions/17657212/how-to-code-the-tkinter-scrolledtext-module
+scrollbar = tk.Scrollbar(middle_frame)
+convo = tk.Text(middle_frame, width=10, height=10, wrap="word", yscrollcommand=scrollbar.set,
+                borderwidth=0, bg=bgcolour, fg=textcolour, font=16, )
+convo.insert(tk.INSERT, f'Comp: Welcome to KeywordFinder Version {version}.')
+convo.see(tk.END)
+getResponse(STAGE)
+scrollbar.config(command=convo.yview)
+scrollbar.pack(side="right", fill="y")
+convo.pack(side="left", fill="both", expand=True)
+
+lower_frame = tk.Frame(window, bg=bgcolour, bd=6)
+lower_frame.place(anchor='sw', relx=0.01, rely=0.99, relwidth=0.98, relheight=0.11)
+
+user = tk.Entry(lower_frame, bg=bgcolour, font=40, fg=textcolour)
+user.place(relx=0, rely=0.2, relwidth=0.7, relheight=0.7)
+user.bind('<Return>', lambda event: updateText(user.get()))
+
+button = tk.Button(lower_frame, text='Enter', font=('Times', 12), bg=bgcolour, fg=textcolour, command=lambda: updateText(user.get()))
+button.place(relx=0.75, rely=0.2, relwidth=0.25, relheight=0.7)
+
+window.mainloop()
