@@ -5,12 +5,17 @@ Project started: September 26th, 2019
 
 **Goal:** To read a student's essay response and find how many times they used specific keywords pre-determined by an instructor. These keywords are to be grouped into a number of groups and the student must use keywords from each group X number of times for the essay response to be acceptable. A GUI is to be implemented for ease of access of the instructor or person assessing the text.
 
+**Update - Version 3.1 - Nov 23rd, 2019:**
+---
+Added functionality to export to csv for usage with Canvas LMS. Now the analyzed text can be given a score and that score will be written to the csv in that assignment's column.
+Pyinstaller did not like one of the modules imported for this so there is no EXE. - *To be fixed in version 3.2*
+
 **Update - Version 3.0 - Nov 19th, 2019:**
 ---
 Fixed bug where text would not be entered at the bottom of the scrollable text field.
 Text field where messages are inputted back and forth is now locked from editing.
 Version 3.0 - with exe folder contains an .EXE file for running the program without python or dependencies installed. This was created with pyinstaller.
-Added README.txt file with brief explanation of file system - *To be improved in Version 3.1.*
+Added README.txt file with brief explanation of file system - *To be improved in Version 3.2.*
 
 **Update - Version 2.5 - Nov 16th, 2019:**
 ---
