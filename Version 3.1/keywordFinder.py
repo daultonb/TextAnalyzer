@@ -4,7 +4,7 @@ import re
 import time
 import csv
 import os
-from xlsxwriter.workbook import Workbook
+from openpyxl import Workbook
 from openpyxl import load_workbook
 import pandas as pd
 import xlrd
@@ -225,13 +225,18 @@ def getKeywordCats():
     # count=0 means start, ask how many categories
     if count == 0:
         convo.insert(tk.END, '\nComp: Would you like to use keywords from text file or manual entry?'
-                                '\nComp: (Enter "0" for text file or "1" manual entry)')
+                             '\nComp: (Enter "0" for text file or "1" manual entry)')
 
-    if count == 1 and manual is None:
+    elif count == 1 and manual is None:
         if userEntries[0] == '0':
             manual = False
         elif userEntries[0] == '1':
             manual = True
+        else:
+            convo.insert(tk.END, f'\n\nComp: That entry was invalid. Please try again.')
+            revert(1)
+            getResponse(STAGE)
+
     if manual:
         if count == 1:
             convo.insert(tk.END, '\nComp: How many keyword categories would you like?')
@@ -939,28 +944,26 @@ def writeToCanvasCSV(assignmentName):
                     if field.__contains__(assignmentName):
                         colLet = chr(colCount)  # converts ascii to character
                     colCount += 1
-            print(f'Index of assignment:[{colLet},1] ')
 
         # This code writes the csv file above to an xslx file
         # Code modified from: https://stackoverflow.com/questions/17684610/python-convert-csv-to-xlsx
         if not os.path.exists(tempPATH):
             os.makedirs(tempPATH)
-            print(f'Dir created: {tempPATH}')
 
-        workbook = Workbook(xlsxFull)
-        worksheet = workbook.add_worksheet('Sheet1')
-        with open(csvFull, 'rt', encoding='utf8') as f:
-            reader = csv.reader(f)
-            for r, row in enumerate(reader):
-                for c, col in enumerate(row):
-                    worksheet.write(r, c, col)
-        workbook.close()
-        print(f'workbook "{xlsxName}" writen to "{tempPATH}"')
+        # This code writes the csv file above to an xslx file
+        # Code modified from: https://stackoverflow.com/questions/17684610/python-convert-csv-to-xlsx
+        wb = Workbook()
+        ws = wb.active
+        with open(csvFull, 'r') as f:
+            for row in csv.reader(f):
+                ws.append(row)
+        wb.save(xlsxFull)
 
         # This code reads the xlsx file created above and writes the new grades to it.
+        # Code modified from: https://stackoverflow.com/questions/49681392/python-pandas-how-to-write-in-a-specific-column-in-an-excel-sheet
         df = pd.DataFrame({assignmentName: scores})
         wb = load_workbook(xlsxFull)
-        ws = wb['Sheet1']
+        ws = wb['Sheet']
         # gap is the row number to start at (excel indexes from 1)
         # row 1 contains assignment name, row 2 contains max grade on assigment (Canvas default formatting)
         gap = 3
@@ -969,13 +972,12 @@ def writeToCanvasCSV(assignmentName):
             ws[cell] = row[0]
 
         wb.save(xlsxFull)
-        print(f'Values have been saved to {xlsxFull}. ')
 
         # This code writes the previously made and modified xlsx file to a CSV
         #  so that it can be imported into canvas.
         # Code modified from: https://stackoverflow.com/questions/20105118/convert-xlsx-to-csv-correctly-using-python
         wb = xlrd.open_workbook(xlsxFull)
-        sh = wb.sheet_by_name('Sheet1')
+        sh = wb.sheet_by_name('Sheet')
         csvFile = open(newCSVFull, 'w')
         wr = csv.writer(csvFile, delimiter=',', lineterminator='\n')
 
@@ -983,13 +985,11 @@ def writeToCanvasCSV(assignmentName):
             wr.writerow(sh.row_values(rownum))
 
         csvFile.close()
-        print(f'CSV file "{newFileName}" written to "{PATH}"')
 
         # This code removes the temporary files we created.
         os.remove(xlsxFull)  # we must remove files from directory before the directory itself
         os.rmdir(tempPATH)  # delete folder "temp"
         # os.remove(csvFull)  # optional: delete the original Canvas Export file so that there is only 1 file at the end.
-        print('Temporary Dir and files have been deleted.')
 
         convo.insert(tk.END, f'\nComp: The student scores have been saved to file "{newFileName}" in the folder "{newCSVFull}".\n')
     except FileNotFoundError:
