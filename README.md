@@ -7,6 +7,9 @@ Project started: September 26th, 2019
 
 ## 0: Updates/ What's New
 ---
+### Update - Version 3.3 - Jan 10th, 2020:
+Fixed issue with using capitalized keywords. All word comparisons are made in lowercase.
+
 ### Update - Version 3.2 - Jan 9th, 2020:
 Improved documentation, added images and removed redundant files from directories. Changes to dialogues to reflect use of .csv files instead of .txt files for reading text. Created executable but file is 41MB (in zip file) and GitHub's upload limit is 25MB, so  am unable to upload. Program should be ready for testing.
 
@@ -107,7 +110,8 @@ The program will initially ask you if you would like to read keywords from a tex
 You may choose either option, but if you choose manual entry, you must **pay attention to the formatting** requested by the program.
 You may also save the keywords entered manually to the text file for later use, as this is a function the program can do.
 You may also edit the text file directly, however this is not recommended.
-
+**All keywords will be changed to lowercase upon entry and compared with a lowercase version of the text to be analyzed.** 
+This is to allow keywords to be found both anywhere in a sentence.
 
 ## 3: Using Canvas Quiz Exports to Analyze Responses
 ---
