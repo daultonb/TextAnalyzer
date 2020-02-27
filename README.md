@@ -8,7 +8,8 @@ Project started: September 26th, 2019
 ## 0: Updates/ What's New
 ---
 ### Update - Version 4.0 - Feb 27th, 2020:
-The program now accepts a spreadsheet (.xlsx file) with prepared responses to speed up analysis process. The program program also preprocesses whether or not the files requested in the .xlsx file are in the expected directories or not. -*Documentation updates for this to come with version 4.1*-
+The program now accepts a spreadsheet (.xlsx file) with prepared responses to speed up analysis process. The program program also preprocesses whether or not the files requested in the .xlsx file are in the expected directories or not. 
+-*Documentation updates for this to come with version 4.1*-
 
 ### Update - Version 3.3 - Jan 10th, 2020:
 Fixed issue with using capitalized keywords. All word comparisons are made in lowercase.
