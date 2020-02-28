@@ -7,6 +7,9 @@ Project started: September 26th, 2019
 
 ## 0: Updates/ What's New
 ---
+### Update - Version 4.1 - Feb 28th, 2020
+Minor bug fixes and documentation update. Up to date comments within code and modified ReadMe.md file.
+
 ### Update - Version 4.0 - Feb 27th, 2020:
 The program now accepts a spreadsheet (.xlsx file) with prepared responses to speed up analysis process. The program program also preprocesses whether or not the files requested in the .xlsx file are in the expected directories or not. 
 -*Documentation updates for this to come with version 4.1*-
@@ -58,25 +61,103 @@ This program's basic function is to analyze a given text entry for the number of
 This is done as follows:
 
 #### Input files
+- *"input.csv" - Prepared spreadsheet with answers to program prompts.
 - *"keywords.txt"* - Keyword Categories stored in a text document (can be multiple, **see 2 below**)
-- *"canvasExport.csv"* - Canvas Gradebook Export to be updated with grades for essay quiz.
-- *"quizExport.csv"* - Canvas Quiz Export to be used to collect the text to be analyzed.
+- *"canvasExport.csv"* * - Canvas Gradebook Export to be updated with grades for essay quiz.
+- *"quizExport.csv"* * - Canvas Quiz Export to be used to collect the text to be analyzed.
 
-#### Output
+![lib](/README_imgs/Screenshots/Directory_lib.png?raw=true)
+![canvas](/README_imgs/Screenshots/Directory_canvas.png?raw=true)
+
+#### Output Files
+- *"canvasImport.csv"* * - Updated Canvas Gradebook file to be imported to Canvas to update grades based on program analysis.
+- *"textAnalysis.csv"* * - csv file containing the number of keywords from each Keyword Category used in each essay.
+##### Output
 - The number of occurences of each of the keywords in the Keyword Categories.
 - The pass/fail status (boolean) of the text for threshold of each Keyword Category.
-- The pass/fail status (boolean) of ALL thresholds of Keyword Categories. ~This is denoted as a "passing" essay.
-##### Output Files
-- *"canvasImport.csv"* - Updated Canvas Gradebook file to be imported to Canvas to update grades based on program analysis.
-- *"textAnalysis.csv"* - csv file containing the number of keywords from each Keyword Category used in each essay.
+- The pass/fail status (boolean) of ALL thresholds of Keyword Categories. ~This is denoted as a "passing" piece of text.
+
+*Note that files marked with an asterisk (" * ") are optional*
+
+### Features
+
+*As of Version 4.0+* the program now supports either manual or autonomous text analysis. 
+-The manual entry will work similiar to a conversation where the program uses the users responses to gather the information it need to complete the analysis. 
+-The autonomous method is done by the user preparing a spreadsheet with responses to the prompts that the program can read, in order to make analysis runs more quick and simplified.
+
+*For more information on using the program, see Part "2: Instructions".*
+
+The program also features some added functionality buttons.
+1. The **light and dark mode buttons**: These buttons allow you to switch from a light theme to a dark theme. This change is purely cosmetic and does not affect functionality.
+
+Light mode:
+![Lightmode](/README_imgs/Screenshots/GUI_light.png?raw=true)
+
+Dark mode:
+![Darkmode](/README_imgs/Screenshots/GUI_dark.png?raw=true)
+
+
+2. The **reset button**: This button will reset the program to the start. This can be useful if you make a mistake or just want to clear the text field after a few run throughs.
+
+Reset Button:
+
+![Reset](/README_imgs/Screenshots/resetButton.png?raw=true)
+
 
 ### Definitions
 A **"Keyword Category"** is an object that has a *name, a threshold, and a list of keywords* associated with it.
 - The **name** is the identifier for the Keyword Category.
 - The **threshold** is the number of occurences of any keyword (or keywords) in that category an analyzed text must meet in order to "pass" that category.
 - The **list of keywords** is a comma seperated list of words (can be multi-word keywords) that the program is to find in the text entry.
+- the **keyword dictionary** is a Python dictornary containing each keyword and a corresponding number of occurences of that keyword in a given text entry.
 
-## 2: Keyword Entry
+## 2: Instructions
+---
+### Executing by reading from Spreadsheet (.xlsx file)
+To use the program using a prepared spreadsheet, you must first set up your files correctly. 
+The directory system should be as follows:
+~~~
+Desktop (or another folder)
+   ├── Version X.x        # Files for downloaded version
+   │   │
+   │   ├── canvas                   # Input and Ouput files for Canvas
+   │   │    ├── canvasExport.csv*   # Gradebook export file from Canvas
+   │   │    ├── canvasImport.csv*   # The updated gradebook file to be imported back into Canvas gradebook
+   │   │    └── quizExport.csv*     # Quiz export containing student responses
+   │   │     
+   │   ├── lib                  # Library files for program to use    
+   │   │    ├── input.xlsx      # Prepared spreadsheet for automatic execution (can be different name)
+   │   │    ├── key.ico         # Icon file for program logo    
+   │   │    └── keywords.txt*   # Keyword file
+   │   │                 
+   └── keywordFinder.exe  # Executable version of the program 
+~~~
+
+*Note: all files with an asterisk (" * ") next to them can have different names as long as you update the prepared spreadsheet accordingly.*
+
+Once you have prepared the file system, make sure the prepared spreadsheet is correct.
+
+Prepared spreadsheet:
+
+![preparedSpreadsheet](/README_imgs/Screenshots/preparedSpreadsheet.png?raw=true)
+
+Once the spreadsheet and file system are set up, ensure that the files are formatted correctly. 
+**For more information on formatting of files see Sections 3, 4, 5, and 6.** 
+
+Now that everything is prepared, you are ready to execute the program. This is what the program should look like.
+
+Sample Spreadsheet execution:
+![spreadsheetEntry](/README_imgs/Screenshots/spreadsheetEntry.png?raw=true)
+
+### Manual Execution
+
+To manually execute the program you need to answer the prompts given by the program. This is explained by the program, but also in the following sections.
+
+Sample Manual Exceution:
+![manualEntry](/README_imgs/Screenshots/manualEntry.png?raw=true)
+
+
+## 3: Keyword Entry
 ---
 In the provided *"keywords.txt"* file, you are given the Keyword Category "Ways of Thinking"
 It is formatted as follows:	
@@ -105,26 +186,32 @@ There are to be no spaces on either side of the comma (,) but there can be space
 
 For example:
 
-This is acceptable 	->    `A multi word keyword,Another multi word keyword`
+This is acceptable 	->    A multi word keyword,Another multi word keyword
 
-This is not		->    A multi word keyword , Another multi word keyword
+`This is not		->    A multi word keyword , Another multi word keyword`
 
 
-The program will initially ask you if you would like to read keywords from a text file or manually enter them.
+The program will initially ask you if you would like to read responses from a spreadsheet or manually enter them.
 You may choose either option, but if you choose manual entry, you must **pay attention to the formatting** requested by the program.
 You may also save the keywords entered manually to the text file for later use, as this is a function the program can do.
 You may also edit the text file directly, however this is not recommended.
 **All keywords will be changed to lowercase upon entry and compared with a lowercase version of the text to be analyzed.** 
 This is to allow keywords to be found both anywhere in a sentence.
 
-## 3: Using Canvas Quiz Exports to Analyze Responses
+
+## 4: Using Canvas Quiz Exports to Analyze Responses
 ---
 The quiz responses from a Canvas LMS quiz should be renamed *"quizExport.csv"* and placed in the directory **"/Version X.x/canvas/"**.
-
 The program will ask if you have a .csv file from Canvas to read in and will be looking for this file by name, so ensure that it is spelled correctly and placed in the correct location.
+
+*Note: The name may be different if you are using the prepared spreadsheet, but "quizExport.csv" is recommended.*
+
 The program will then ask what the **"unique string"** of the Quiz question is. This is to find the .csv file column containing the student responses.
 This is necessary to ensure the text read from the .csv file is only the text that contains student responses ("essays") and not the wrong question or any of the other information canvas stores in the quiz export file. 
 In the example below, I used the unique string **"Reflection Question"** at the beginning of the question.
+
+Unique String in Canvas Quiz Question
+![uniqueStringCanvas](/README_imgs/Screenshots/CanvasQuizQuestion.png?raw=true)
 
 Unique String in CSV file (opened in Excel):
 ![uniqueStringCSV](/README_imgs/Screenshots/UniqueStringinCSV.png?raw=true)
@@ -132,30 +219,30 @@ Unique String in CSV file (opened in Excel):
 Unique String entered in program:
 ![uniqueString](/README_imgs/Screenshots/UniqueString.png?raw=true)
 
-Once the file has been read in to the program, it will show the text repsonses that have been read in. Please read them to ensure they are correct and as expected.
+Once the file has been read into the program, it will show the text repsonses that have been read in. Please read them to ensure they are correct and as expected.
 
-## 4: Text Analysis CSV File
+## 5: Text Analysis CSV File
 ---
 The program can generate a csv file with the number of keywords used in each Keyword Category that can be further analyzed in Excel. The program will ask if y ou would like to "save these statistics to a csv file". This file  can be found in the directory /Version X.x/lib/"textAnalysis.csv"
 
 Format of *"textAnalysis.csv"*
 ```
-Matches Category 1 (threshold1), Matches Category 2(threshold2), ..., Total Matches
-Student 1 Matches, Student 1 Matches, ..., Student 1 TotalMatches
-Student 2 Matches, Student 2 Matches, ..., Student 2 TotalMatches
+Matches Category 1 (threshold1), Matches Category 2(threshold2), ..., Total Matches, Passed (T/F)
+Student 1 Matches, Student 1 Matches, ..., Student 1 TotalMatches, TRUE
+Student 2 Matches, Student 2 Matches, ..., Student 2 TotalMatches, FALSE
 ```
 
 This will give us a **excel file** formatted like this:
 
-| Matches Category 1 (threshold1)| Matches Category 2 (threshold2) |...| Total Matches |
-| ------ | ------ | ------ |------ |
- |Student 1 Matches Category 1  |Student 1 Matches Category 2  |...|Student 1 Total Matches |
- |Student 2 Matches Category 1  |Student 2 Matches Category 2  |...|Student 2 Total Matches |
+| Matches Category 1 (threshold1)| Matches Category 2 (threshold2) |...| Total Matches | Passed (T/F) |
+| ------ | ------ | ------ |------ |-----|
+ |Student 1 Matches Category 1  |Student 1 Matches Category 2  |...|Student 1 Total Matches | TRUE |
+ |Student 2 Matches Category 1  |Student 2 Matches Category 2  |...|Student 2 Total Matches | FALSE |
  
  Example:
  ![textAnalysis](/README_imgs/Screenshots/textAnalysis.png?raw=true)
 
-## 5: Canvas Gradebook Updates using CSV File 
+## 6: Canvas Gradebook Updates using CSV File 
 ---
 The program can also write grades for the responses it has analyzed. To do this, two .csv files will be used. For the first file (*"canvasExport.csv"*) you must export a .csv file from your canvas gradebook. This can be done by going to the grades page on canvas and clicking Actions->Export
 Exporting in Canvas:
@@ -173,6 +260,7 @@ When running the program, it will ask for a assignment name to add the grades un
 Note: This program was designed to give the essay responses a pass/fail grade. Since this is the case, the grades outputted to the .csv gradebook file will be:
 - "1" for pass
 - "0" for fail
+
 Canvas Import .csv File opened in Excel:
  ![canvasImportCSV](/README_imgs/Screenshots/canvasImportCSV.png?raw=true)
  
