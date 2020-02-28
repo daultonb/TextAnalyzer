@@ -240,6 +240,7 @@ This will give us a **excel file** formatted like this:
  |Student 2 Matches Category 1  |Student 2 Matches Category 2  |...|Student 2 Total Matches | FALSE |
  
  Example:
+ 
  ![textAnalysis](/README_imgs/Screenshots/textAnalysis.png?raw=true)
 
 ## 6: Canvas Gradebook Updates using CSV File 
