@@ -1,0 +1,1 @@
+start %~dp0"Version 4.5\lib\textAnalyzer.exe"
