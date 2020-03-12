@@ -1,4 +1,4 @@
-# KeywordFinder
+# TextAnalyzer
 A Python Program design to find the number of occurrences of keywords in a given text 
 
 Project started: September 26th, 2019
@@ -7,6 +7,12 @@ Project started: September 26th, 2019
 
 ## 0: Updates/ What's New
 ---
+### Update - Version 4.5 - Mar 12th, 2020
+The program now analyzes the number and percentage of unique words used in the text entry. This is a minor implementation of NLP to prevent repeated use of keywords in order to have a passing text entry.
+The program also now runs from a batch file (which finds and runs hidden executable file). The executable is still too big for Github but can be generated using Pyinstaller. 
+The default colourmode is now UBC which utilizes UBC blue (#002145). A button has been added to switch inbetween this theme and the others.
+The program has now also been renamed "Text Analyzer" as "Keyword Finder" was a little too obvious (lol)
+
 ### Update - Version 4.1 - Feb 28th, 2020
 Minor bug fixes and documentation update. Up to date comments within code and modified ReadMe.md file.
 
@@ -96,6 +102,10 @@ Light mode:
 Dark mode:
 ![Darkmode](/README_imgs/Screenshots/GUI_dark.png?raw=true)
 
+UBC mode:
+![UBCmode](/README_imgs/Screenshots/GUI_ubc.png?raw=true)
+
+
 
 2. The **reset button**: This button will reset the program to the start. This can be useful if you make a mistake or just want to clear the text field after a few run throughs.
 
@@ -118,6 +128,7 @@ To use the program using a prepared spreadsheet, you must first set up your file
 The directory system should be as follows:
 ~~~
 Desktop (or another folder)
+   ├── textAnalyzer.bat   # Batch file to run program (executes textAnalyzer.exe)
    ├── Version X.x        # Files for downloaded version
    │   │
    │   ├── canvas                   # Input and Ouput files for Canvas
@@ -125,12 +136,10 @@ Desktop (or another folder)
    │   │    ├── canvasImport.csv*   # The updated gradebook file to be imported back into Canvas gradebook
    │   │    └── quizExport.csv*     # Quiz export containing student responses
    │   │     
-   │   ├── lib                  # Library files for program to use    
-   │   │    ├── input.xlsx      # Prepared spreadsheet for automatic execution (can be different name)
-   │   │    ├── key.ico         # Icon file for program logo    
-   │   │    └── keywords.txt*   # Keyword file
-   │   │                 
-   └── keywordFinder.exe  # Executable version of the program 
+   │   ├── lib                     # Library files for program to use    
+   │   │    ├── input.xlsx         # Prepared spreadsheet for automatic execution (can be different name)
+   │   │    ├── textAnalyzer.exe`   # Hidden Executable version of the program     
+            └── keywords.txt*      # Keyword file
 ~~~
 
 *Note: all files with an asterisk (" * ") next to them can have different names as long as you update the prepared spreadsheet accordingly.*
