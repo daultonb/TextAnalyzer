@@ -7,6 +7,11 @@ Project started: September 26th, 2019
 
 ## 0: Updates/ What's New
 ---
+### Update - Version 4.6 - Mar 13th, 2020
+The program now shows the count of each of the unique words (in decending order) this allows the grader to see if the person repeatedly used keywords and not English to pass). 
+The dictionary was updated with all of the keywords in "keywords.txt" 
+The layour was fixed so now the background fills the whole window.
+
 ### Update - Version 4.5 - Mar 12th, 2020
 The program now analyzes the number and percentage of unique words used in the text entry. This is a minor implementation of NLP to prevent repeated use of keywords in order to have a passing text entry.
 The program also now runs from a batch file (which finds and runs hidden executable file). The executable is still too big for Github but can be generated using Pyinstaller. 
