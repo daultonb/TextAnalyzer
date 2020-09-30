@@ -1,5 +1,5 @@
 # TextAnalyzer
-A Python Program design to find the number of occurrences of keywords in a given text 
+A Python Program written for UBC Okanagan's Makerspace UBCO designed to find the number of occurrences of keywords in a given text 
 
 Project started: September 26th, 2019
 
